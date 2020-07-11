@@ -34,6 +34,11 @@ Alfred.with_friendly_error do |alfred|
     end
   end
 
+  # Required parameters: type, which must be Comment, Document, Message, Question::Answer, Schedule::Entry, Todo, Todolist, or Upload.
+  def get_recordings_uri(company_id, type)
+      "https://3.basecampapi.com/#{company_id}/projects/recordings.json?type=#{type}"
+  end
+
   def get_project_json(api, company_id)
     client = HTTPClient.new
     client = HTTPClient.new default_header: {"User-Agent" => "alfred2-basecamp (john.pinkerton@me.com)"}
@@ -51,6 +56,32 @@ Alfred.with_friendly_error do |alfred|
       break if (link_header.nil? || link_header.empty?)
       end_index = link_header.index('>');
       uri = link_header[1..end_index]
+    end
+
+    begin
+      throw_token_error if parsed["error"]
+    rescue
+      parsed
+    end
+  end
+
+  def get_recordings_json(company_id, type)
+    client = HTTPClient.new
+    client = HTTPClient.new default_header: {"User-Agent" => "alfred2-basecamp (john.pinkerton@me.com)"}
+    client = HTTPClient.new default_header: {"Authorization" => "Bearer #{BASECAMP_TOKEN}"}
+
+    uri = get_recordings_uri(company_id, type)
+    parsed = []
+
+    loop do
+      res = client.request 'GET', uri
+      parsed += JSON.parse(res.body)
+
+      # https://github.com/basecamp/bc3-api/blob/master/README.md#pagination
+      link_header = res.header['Link'][0]
+      break if (link_header.nil? || link_header.empty?)
+      end_index = link_header.index('>');
+      uri = link_header[1..end_index-1]
     end
 
     begin
@@ -91,6 +122,30 @@ Alfred.with_friendly_error do |alfred|
     fb
   end
 
+  def load_recordings(type)
+    fb = ALFRED.feedback
+
+    b3_recordings = BASECAMP3_COMPANY_IDS.map{ |company|
+      get_recordings_json(company, type)
+    }
+
+    b3_recordings.each do |recordings|
+      recordings.each do |recording|
+        url = recording["app_url"]
+        fb.add_item({
+          :uid => recording["id"],
+          :title => recording["title"],
+          :subtitle => recording["bucket"]["name"],
+          :arg => url,
+          :autocomplete => recording["title"],
+          :valid => "yes"
+        })
+      end
+    end
+
+    fb
+  end
+
   def throw_token_error
     fb = ALFRED.feedback
 
@@ -123,6 +178,8 @@ Alfred.with_friendly_error do |alfred|
     puts fb.to_alfred(ARGV[0])
   else
     fb = load_projects
+    fb = load_recordings("Todo")
+    fb = load_recordings("Message")
     fb.put_cached_feedback
     puts fb.to_alfred(ARGV[0])
   end
