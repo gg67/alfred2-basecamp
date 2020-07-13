@@ -39,6 +39,10 @@ Alfred.with_friendly_error do |alfred|
       "https://3.basecampapi.com/#{company_id}/projects/recordings.json?type=#{type}"
   end
 
+  def get_my_assignments_uri(company_id)
+   "https://3.basecamp.com/#{company_id}/my/assignments"
+  end
+
   def get_project_json(api, company_id)
     client = HTTPClient.new
     client = HTTPClient.new default_header: {"User-Agent" => "alfred2-basecamp (john.pinkerton@me.com)"}
@@ -146,6 +150,25 @@ Alfred.with_friendly_error do |alfred|
     fb
   end
 
+  def load_special_urls()
+    fb = ALFRED.feedback
+
+    bc3_company_ids = BASECAMP3_COMPANY_IDS
+
+    bc3_company_ids.each do |company_id|
+      url = "https://3.basecamp.com/#{company_id}/my/assignments"
+      fb.add_item({
+        :uid => "#{company_id}-my-assignments",
+        :title => "My Assignments",
+        :subtitle => url,
+        :arg => url,
+        :autocomplete => "My Assignments",
+        :valid => "yes"
+      })
+    end
+    fb
+  end
+
   def throw_token_error
     fb = ALFRED.feedback
 
@@ -180,6 +203,7 @@ Alfred.with_friendly_error do |alfred|
     fb = load_projects
     fb = load_recordings("Todo")
     fb = load_recordings("Message")
+    fb = load_special_urls
     fb.put_cached_feedback
     puts fb.to_alfred(ARGV[0])
   end
