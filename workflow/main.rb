@@ -139,7 +139,7 @@ Alfred.with_friendly_error do |alfred|
         fb.add_item({
           :uid => recording["id"],
           :title => recording["title"],
-          :subtitle => recording["bucket"]["name"],
+          :subtitle => "#{recording['bucket']['name']} - #{recording['title']}",
           :arg => url,
           :autocomplete => recording["title"],
           :valid => "yes"
